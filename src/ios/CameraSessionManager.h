@@ -52,4 +52,7 @@
 @property (nonatomic, assign) id delegate;
 @property (nonatomic) NSString *currentWhiteBalanceMode;
 @property (nonatomic) NSDictionary *colorTemperatures;
+@property (nonatomic, strong) AVCaptureMultiCamSession *multiCamSession;
+@property (nonatomic, strong) NSArray<AVCaptureDevice *> *backCameras;
+@property (nonatomic, assign) NSInteger selectedBackCameraIndex;
 @end

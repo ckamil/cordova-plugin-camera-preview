@@ -56,6 +56,24 @@
 
     self.colorTemperatures = [NSDictionary dictionaryWithObjects:@[wbIncandescent,wbCloudyDaylight,wbDaylight,wbFluorescent,wbShade,wbWarmFluorescent,wbTwilight]
                                            forKeys:@[@"incandescent",@"cloudy-daylight",@"daylight",@"fluorescent",@"shade",@"warm-fluorescent",@"twilight"]];
+
+    // Discover available back cameras
+    [self discoverAvailableCameras];
+    self.selectedBackCameraIndex = 0;
+
+    for (NSInteger index = 0; index < self.backCameras.count; index++) {
+        AVCaptureDevice *device = self.backCameras[index];
+
+        if ([device.deviceType isEqualToString:AVCaptureDeviceTypeBuiltInUltraWideCamera]) {
+            self.selectedBackCameraIndex = index;
+
+            NSLog(@"Selected Back Camera: %@", [device localizedName]);
+
+            break;
+        }
+    }
+
+    [self logAvailableCameras]; // Log available cameras to the console
   }
   return self;
 }
@@ -64,6 +82,35 @@
   AVCaptureDevice * videoDevice = [self cameraWithPosition: self.defaultCamera];
 
   return videoDevice.formats;
+}
+
+- (void)discoverAvailableCameras {
+    NSMutableArray<AVCaptureDevice *> *backCameras = [NSMutableArray array];
+
+    self.multiCamSession = [[AVCaptureMultiCamSession alloc] init];
+
+    AVCaptureDeviceDiscoverySession *discoverySession = [AVCaptureDeviceDiscoverySession
+                                                         discoverySessionWithDeviceTypes:@[
+                                                         AVCaptureDeviceTypeBuiltInUltraWideCamera,
+                                                         AVCaptureDeviceTypeBuiltInWideAngleCamera,
+                                                         AVCaptureDeviceTypeBuiltInTelephotoCamera,
+                                                         AVCaptureDeviceTypeBuiltInDualCamera,
+                                                         AVCaptureDeviceTypeBuiltInDualWideCamera,
+                                                         AVCaptureDeviceTypeBuiltInTripleCamera,
+                                                         AVCaptureDeviceTypeContinuityCamera,
+                                                         AVCaptureDeviceTypeBuiltInDuoCamera]
+                                                         mediaType:AVMediaTypeVideo
+                                                         position:AVCaptureDevicePositionBack];
+
+    NSArray<AVCaptureDevice *> *devices = discoverySession.devices;
+
+    for (AVCaptureDevice *device in devices) {
+        if (device.position == AVCaptureDevicePositionBack) {
+            [backCameras addObject:device];
+        }
+    }
+
+    self.backCameras = [backCameras copy];
 }
 
 - (AVCaptureVideoOrientation) getCurrentOrientation {
@@ -104,7 +151,7 @@
         self.defaultCamera = AVCaptureDevicePositionBack;
       }
 
-      AVCaptureDevice * videoDevice = [self cameraWithPosition: self.defaultCamera];
+      AVCaptureDevice *videoDevice = [self defaultCamera] == AVCaptureDevicePositionBack ? [self currentBackCamera] : [self cameraWithPosition:self.defaultCamera];
 
       if ([videoDevice hasFlash] && [videoDevice isFlashModeSupported:AVCaptureFlashModeAuto]) {
         if ([videoDevice lockForConfiguration:&error]) {
@@ -173,7 +220,12 @@
   if (self.defaultCamera == AVCaptureDevicePositionFront) {
     self.defaultCamera = AVCaptureDevicePositionBack;
   } else {
-    self.defaultCamera = AVCaptureDevicePositionFront;
+    if (self.backCameras.count > self.selectedBackCameraIndex + 1) {
+        self.selectedBackCameraIndex = self.selectedBackCameraIndex + 1;
+    } else {
+        self.defaultCamera = AVCaptureDevicePositionFront;
+        self.selectedBackCameraIndex = 0;
+    }
   }
 
   dispatch_async([self sessionQueue], ^{
@@ -724,4 +776,25 @@
   return nil;
 }
 
+- (AVCaptureDevice *) currentBackCamera {
+  if (self.backCameras.count > 0 && self.selectedBackCameraIndex < self.backCameras.count) {
+    return self.backCameras[self.selectedBackCameraIndex];
+  }
+  return nil;
+}
+
+- (void)logAvailableCameras {
+    NSArray *devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
+    NSUInteger index = 0;
+    NSLog(@"Available Back Cameras:");
+
+    for (AVCaptureDevice *device in self.backCameras) {
+        NSLog(@"Camera %lu: %@", (unsigned long)index, [device localizedName]);
+        NSLog(@"UniqueID: %@", [device uniqueID]);
+        NSLog(@"Type: %@", [device deviceType]);
+        NSLog(@"Active Format: %@", [device activeFormat]);
+
+        index++;
+    }
+}
 @end
