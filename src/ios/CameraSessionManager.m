@@ -239,9 +239,7 @@
         [self setVideoDeviceInput:nil];
       }
 
-      AVCaptureDevice *videoDevice = nil;
-
-      videoDevice = [self cameraWithPosition:self.defaultCamera];
+      AVCaptureDevice *videoDevice = [self defaultCamera] == AVCaptureDevicePositionBack ? [self currentBackCamera] : [self cameraWithPosition:self.defaultCamera];
 
       if ([videoDevice hasFlash] && [videoDevice isFlashModeSupported:self.defaultFlashMode]) {
         if ([videoDevice lockForConfiguration:&error]) {
